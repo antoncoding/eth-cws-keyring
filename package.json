@@ -1,0 +1,24 @@
+{
+  "name": "eth-cws-keyring",
+  "version": "1.0.0",
+  "description": "MetaMask Keyring wrapper on CoolWalletS sdk ",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/antoncoding/eth-cws-keyring.git"
+  },
+  "author": "anton",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/antoncoding/eth-cws-keyring/issues"
+  },
+  "homepage": "https://github.com/antoncoding/eth-cws-keyring#readme",
+  "dependencies": {
+    "cws-eth": "file:../coolwalletsjs/packages/cws-eth",
+    "cws-web-ble": "file:../coolwalletsjs/packages/transport-web-ble",
+    "sdk-core": "file:../coolwalletsjs/packages/sdk-core"
+  }
+}
