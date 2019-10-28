@@ -20,5 +20,10 @@
     "cws-eth": "file:../coolwalletsjs/packages/cws-eth",
     "cws-web-ble": "file:../coolwalletsjs/packages/transport-web-ble",
     "sdk-core": "file:../coolwalletsjs/packages/sdk-core"
+  },
+  "devDependencies": {
+    "@typescript-eslint/parser": "^2.3.0",
+    "eslint-plugin-react": "^7.14.3",
+    "prettier-eslint": "^9.0.0"
   }
 }
