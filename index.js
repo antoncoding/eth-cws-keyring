@@ -2,8 +2,10 @@ const { EventEmitter } = require('events')
 const ethUtil = require('ethereumjs-util')
 const HDKey = require('hdkey')
 const DELAY_BETWEEN_POPUPS = 1000
-import cwsETH from 'cws-eth'
-import TransportWebBle from 'cws-web-ble'
+const cwsETH = require('cws-eth')
+const TransportWebBle = require('cws-web-ble')
+const { Transaction } = require('ethereumjs-tx')
+
 const type = 'CoolWalletS'
 
 class CoolWalletSKeyring extends EventEmitter {
@@ -160,33 +162,28 @@ class CoolWalletSKeyring extends EventEmitter {
     this.accounts = this.accounts.filter(a => a.toLowerCase() !== address.toLowerCase())
   }
 
-  // tx is an instance of the ethereumjs-transaction class.
+  /**
+   * 
+   * @param {string} address 
+   * @param {Transaction} tx 
+   */
   signTransaction(address, tx) {
     return new Promise((resolve, reject) => {
       this.connectWallet()
-        .then(_ => {
+        .then(() => {
           this.unlock().then(status => {
             setTimeout(
               _ => {
+                const payload = tx.serialize().toString('hex')
                 this.ETH.signTransaction(payload, this._indexFromAddress(address))
-                  .then(response => {
-                    if (response.success) {
-                      tx.v = response.payload.v
-                      tx.r = response.payload.r
-                      tx.s = response.payload.s
-
-                      const signedTx = new Transaction(tx)
-
-                      const addressSignedWith = ethUtil.toChecksumAddress(`0x${signedTx.from.toString('hex')}`)
-                      const correctAddress = ethUtil.toChecksumAddress(address)
-                      if (addressSignedWith !== correctAddress) {
-                        reject(new Error('signature doesnt match the right address'))
-                      }
-
-                      resolve(signedTx)
-                    } else {
-                      reject(new Error((response.payload && response.payload.error) || 'Unknown error'))
+                  .then(hex => {
+                    const signedTx = new Transaction(hex)
+                    const addressSignedWith = ethUtil.toChecksumAddress(`0x${signedTx.from.toString('hex')}`)
+                    const correctAddress = ethUtil.toChecksumAddress(address)
+                    if (addressSignedWith !== correctAddress) {
+                      reject(new Error('signature doesnt match the right address'))
                     }
+                    resolve(signedTx)
                   })
                   .catch(e => {
                     reject(new Error((e && e.toString()) || 'Unknown error'))
@@ -203,7 +200,7 @@ class CoolWalletSKeyring extends EventEmitter {
   }
 
   signMessage(withAccount, data) {
-    return this.signPersonalMessage(withAccount, data)
+    // return this.signPersonalMessage(withAccount, data)
   }
 
   // For personal_sign, we need to prefix the message:
