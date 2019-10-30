@@ -19,6 +19,8 @@
   "dependencies": {
     "cws-eth": "file:../coolwalletsjs/packages/cws-eth",
     "cws-web-ble": "file:../coolwalletsjs/packages/transport-web-ble",
+    "ethereumjs-tx": "^2.1.1",
+    "ethereumjs-util": "^6.1.0",
     "sdk-core": "file:../coolwalletsjs/packages/sdk-core"
   },
   "devDependencies": {
