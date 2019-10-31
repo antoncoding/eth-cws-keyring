@@ -181,7 +181,7 @@ class CoolWalletSKeyring extends EventEmitter {
               _ => {
                 const payload = tx.serialize().toString('hex')
                 const { index, publicKey } = this._indexFromAddress(address)
-                this.ETH.signTransaction(payload, index, publicKey )
+                this.ETH.signTransaction(payload, index, publicKey)
                   .then(hex => {
                     const signedTx = new Transaction(hex)
                     const addressSignedWith = ethUtil.toChecksumAddress(`0x${signedTx.from.toString('hex')}`)
@@ -212,10 +212,14 @@ class CoolWalletSKeyring extends EventEmitter {
   // For personal_sign, we need to prefix the message:
   signPersonalMessage(withAccount, message) {
     return new Promise((resolve, reject) => {
-      this.unlock().then(_=>{
-        this.connectWallet().then(_=>{
+      this.unlock().then(_ => {
+        this.connectWallet().then(_ => {
           let { index, publicKey } = this._indexFromAddress(withAccount)
-          this.ETH.signMessage(message, index, publicKey)
+          this.ETH.signMessage(message, index, publicKey).then(signature => {
+            resolve(signature)
+          },
+          error => reject('signig error' + error)
+          )
         })
       })
     })
@@ -247,8 +251,8 @@ class CoolWalletSKeyring extends EventEmitter {
 
   _addressFromIndex(i) {
     const pubkeyBuf = this.hdk.derive(`${i}`).publicKey
-    const address = ethUtil.publicToAddress(pubkeyBuf, true).toString('hex')
-    const address = ethUtil.toChecksumAddress(address)
+    let address = ethUtil.publicToAddress(pubkeyBuf, true).toString('hex')
+    address = ethUtil.toChecksumAddress(address)
     return { address, publicKey: pubkeyBuf.toString('hex') }
   }
 
@@ -257,7 +261,7 @@ class CoolWalletSKeyring extends EventEmitter {
     let index = this.paths[checksummedAddress]
     if (typeof index === 'undefined') {
       for (let i = 0; i < MAX_INDEX; i++) {
-        if (checksummedAddress === this._addressFromIndex(pathBase, i).address ) {
+        if (checksummedAddress === this._addressFromIndex(pathBase, i).address) {
           index = i
           break
         }
