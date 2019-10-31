@@ -16,9 +16,7 @@ class CoolWalletSKeyring extends EventEmitter {
     this.accounts = []
     this.hdk = new HDKey()
     this.transport = new TransportWebBle()
-    //
-    this.ETH = new cwsETH()
-    //
+    this.ETH = new cwsETH(this.transport)
     this.deserialize(opts)
   }
 
@@ -50,7 +48,7 @@ class CoolWalletSKeyring extends EventEmitter {
     return new Promise((resolve, reject) => {
       if (this.transport.connected) resolve('already connected')
       this.transport.connect().then(
-        () => {
+        _ => {
           resolve('connected')
         },
         error => {
@@ -60,10 +58,16 @@ class CoolWalletSKeyring extends EventEmitter {
     })
   }
 
+  /**
+   * Unlocked of CWS means you have access to all the public keys. (Not connected to device.)
+   */
   isUnlocked() {
     return !!(this.hdk && this.hdk.publicKey)
   }
 
+  /**
+   * Get access to public keys.
+   */
   unlock() {
     if (this.isUnlocked()) return Promise.resolve('already unlocked')
     return new Promise((resolve, reject) => {
@@ -94,7 +98,7 @@ class CoolWalletSKeyring extends EventEmitter {
           this.accounts = []
 
           for (let i = from; i < to; i++) {
-            const address = this._addressFromIndex(i)
+            const address = this._addressFromIndex(i).address
             this.accounts.push(address)
             this.page = 0
           }
@@ -135,13 +139,14 @@ class CoolWalletSKeyring extends EventEmitter {
           const accounts = []
 
           for (let i = from; i < to; i++) {
-            const address = this._addressFromIndex(i)
+            const { address, publicKey } = this._addressFromIndex(i)
             accounts.push({
               address: address,
               balance: null,
               index: i,
             })
             this.paths[ethUtil.toChecksumAddress(address)] = i
+            this.pubkeys[i] = publicKey
           }
           resolve(accounts)
         })
@@ -163,9 +168,9 @@ class CoolWalletSKeyring extends EventEmitter {
   }
 
   /**
-   * 
-   * @param {string} address 
-   * @param {Transaction} tx 
+   *
+   * @param {string} address
+   * @param {Transaction} tx
    */
   signTransaction(address, tx) {
     return new Promise((resolve, reject) => {
@@ -175,7 +180,8 @@ class CoolWalletSKeyring extends EventEmitter {
             setTimeout(
               _ => {
                 const payload = tx.serialize().toString('hex')
-                this.ETH.signTransaction(payload, this._indexFromAddress(address))
+                const { index, publicKey } = this._indexFromAddress(address)
+                this.ETH.signTransaction(payload, index, publicKey )
                   .then(hex => {
                     const signedTx = new Transaction(hex)
                     const addressSignedWith = ethUtil.toChecksumAddress(`0x${signedTx.from.toString('hex')}`)
@@ -206,14 +212,12 @@ class CoolWalletSKeyring extends EventEmitter {
   // For personal_sign, we need to prefix the message:
   signPersonalMessage(withAccount, message) {
     return new Promise((resolve, reject) => {
-      this.unlock()
-        .then(status => {
-          console.log('what?')
+      this.unlock().then(_=>{
+        this.connectWallet().then(_=>{
+          let { index, publicKey } = this._indexFromAddress(withAccount)
+          this.ETH.signMessage(message, index, publicKey)
         })
-        .catch(e => {
-          console.log('Error while trying to sign a message ', e)
-          reject(new Error((e && e.toString()) || 'Unknown error'))
-        })
+      })
     })
   }
 
@@ -232,6 +236,7 @@ class CoolWalletSKeyring extends EventEmitter {
     this.page = 0
     this.unlockedAccount = 0
     this.paths = {}
+    this.pubkeys = {}
   }
 
   /* PRIVATE METHODS */
@@ -241,9 +246,10 @@ class CoolWalletSKeyring extends EventEmitter {
   }
 
   _addressFromIndex(i) {
-    const dkey = this.hdk.derive(`${i}`)
-    const address = ethUtil.publicToAddress(dkey.publicKey, true).toString('hex')
-    return ethUtil.toChecksumAddress(address)
+    const pubkeyBuf = this.hdk.derive(`${i}`).publicKey
+    const address = ethUtil.publicToAddress(pubkeyBuf, true).toString('hex')
+    const address = ethUtil.toChecksumAddress(address)
+    return { address, publicKey: pubkeyBuf.toString('hex') }
   }
 
   _indexFromAddress(address) {
@@ -251,7 +257,7 @@ class CoolWalletSKeyring extends EventEmitter {
     let index = this.paths[checksummedAddress]
     if (typeof index === 'undefined') {
       for (let i = 0; i < MAX_INDEX; i++) {
-        if (checksummedAddress === this._addressFromIndex(pathBase, i)) {
+        if (checksummedAddress === this._addressFromIndex(pathBase, i).address ) {
           index = i
           break
         }
@@ -261,8 +267,8 @@ class CoolWalletSKeyring extends EventEmitter {
     if (typeof index === 'undefined') {
       throw new Error('Unknown address')
     }
-
-    return index
+    let publicKey = this.pubkeys[index]
+    return { index, publicKey }
   }
 }
 
