@@ -179,9 +179,20 @@ class CoolWalletSKeyring extends EventEmitter {
           this.unlock().then(status => {
             setTimeout(
               _ => {
-                const payload = tx.serialize().toString('hex')
                 const { index, publicKey } = this._indexFromAddress(address)
-                this.ETH.signTransaction(payload, index, publicKey)
+                this.ETH.signTransaction(
+                  {
+                    nonce: this._normalize(tx.nonce),
+                    gasPrice: this._normalize(tx.gasPrice),
+                    gasLimit: this._normalize(tx.gasLimit),
+                    to: this._normalize(tx.to),
+                    value: this._normalize(tx.value),
+                    data: this._normalize(tx.data),
+                    chainId: tx._chainId,
+                  },
+                  index,
+                  publicKey
+                )
                   .then(hex => {
                     const signedTx = new Transaction(hex)
                     const addressSignedWith = ethUtil.toChecksumAddress(`0x${signedTx.from.toString('hex')}`)
@@ -205,20 +216,16 @@ class CoolWalletSKeyring extends EventEmitter {
     })
   }
 
-  signMessage(withAccount, data) {
-    // return this.signPersonalMessage(withAccount, data)
-  }
-
-  // For personal_sign, we need to prefix the message:
-  signPersonalMessage(withAccount, message) {
+  signMessage(withAccount, message) {
     return new Promise((resolve, reject) => {
       this.unlock().then(_ => {
         this.connectWallet().then(_ => {
           let { index, publicKey } = this._indexFromAddress(withAccount)
-          this.ETH.signMessage(message, index, publicKey).then(signature => {
-            resolve(signature)
-          },
-          error => reject('signig error' + error)
+          this.ETH.signMessage(message, index, publicKey).then(
+            signature => {
+              resolve(signature)
+            },
+            error => reject('signig error' + error)
           )
         })
       })
@@ -226,11 +233,22 @@ class CoolWalletSKeyring extends EventEmitter {
   }
 
   signTypedData(withAccount, typedData) {
-    // Waiting on trezor to enable this
-    return Promise.reject(new Error('Not supported on this device'))
+    return new Promise((resolve, reject) => {
+      this.unlock().then(_ => {
+        this.connectWallet().then(_ => {
+          let { index, publicKey } = this._indexFromAddress(withAccount)
+          this.ETH.signTypedData(typedData, index, publicKey).then(
+            signature => {
+              resolve(signature)
+            },
+            error => reject('signig error' + error)
+          )
+        })
+      })
+    })
   }
 
-  exportAccount(address) {
+  exportAccount() {
     return Promise.reject(new Error('Not supported on this device'))
   }
 
@@ -249,6 +267,10 @@ class CoolWalletSKeyring extends EventEmitter {
     return ethUtil.bufferToHex(buf).toString()
   }
 
+  /**
+   * @param {number} i index
+   * @return { publicKey: string, address: string }
+   */
   _addressFromIndex(i) {
     const pubkeyBuf = this.hdk.derive(`${i}`).publicKey
     let address = ethUtil.publicToAddress(pubkeyBuf, true).toString('hex')

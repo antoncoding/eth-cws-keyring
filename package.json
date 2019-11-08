@@ -17,7 +17,7 @@
   },
   "homepage": "https://github.com/antoncoding/eth-cws-keyring#readme",
   "dependencies": {
-    "@coolwallets/eth": "0.1.0",
+    "@coolwallets/eth": "0.1.1",
     "@coolwallets/transport-web-ble": "0.0.2",
     "ethereumjs-tx": "^2.1.1",
     "ethereumjs-util": "^6.1.0",
