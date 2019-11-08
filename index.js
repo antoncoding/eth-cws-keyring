@@ -2,8 +2,8 @@ const { EventEmitter } = require('events')
 const ethUtil = require('ethereumjs-util')
 const HDKey = require('hdkey')
 const DELAY_BETWEEN_POPUPS = 1000
-const cwsETH = require('cws-eth')
-const TransportWebBle = require('cws-web-ble')
+const cwsETH = require('@coolwallets/eth')
+const TransportWebBle = require('@coolwallets/transport-web-ble')
 const { Transaction } = require('ethereumjs-tx')
 
 const type = 'CoolWalletS'
