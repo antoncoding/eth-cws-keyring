@@ -1,104 +1,102 @@
 const { EventEmitter } = require('events')
-const ethUtil = require('ethereumjs-util')
 const HDKey = require('hdkey')
-const DELAY_BETWEEN_POPUPS = 1000
-const cwsETH = require('@coolwallets/eth')
-const TransportWebBle = require('@coolwallets/transport-web-ble')
-const { Transaction } = require('ethereumjs-tx')
-
+const ethUtil = require('ethereumjs-util')
 const type = 'CoolWalletS'
+const BRIDGE_URL = 'https://antoncoding.github.io'
+const MAX_INDEX = 1000
+const rlp = require('rlp')
 
-class CoolWalletSKeyring extends EventEmitter {
+class CoolWalletKeyRing extends EventEmitter {
   constructor(opts = {}) {
     super()
+    this.bridgeUrl = null
+    this.type = type
     this.page = 0
     this.perPage = 5
-    this.accounts = []
+    this.unlockedAccount = 0
     this.hdk = new HDKey()
-    this.transport = new TransportWebBle()
-    this.ETH = new cwsETH(this.transport)
+    this.paths = {}
+    this.iframe = null
+    this.network = 'mainnet'
     this.deserialize(opts)
+    this._setupIframe()
   }
 
   serialize() {
     return Promise.resolve({
-      unlockedAccount: this.unlockedAccount,
-      parentPublicKey: this.hdk.publicKey.toString('hex'),
-      parentChainCode: this.hdk.chainCode.toString('hex'),
-      appId: this.appId,
-      appPirvateKey: this.appPrivateKey,
-      appPublicKey: this.appPublicKey,
+      hdPath: this.hdPath,
       accounts: this.accounts,
+      bridgeUrl: this.bridgeUrl,
     })
   }
 
   deserialize(opts = {}) {
-    this.unlockedAccount = opts.unlockedAccount
-    this.hdk.publicKey = opts.parentPublicKey
-    this.hdk.chainCode = opts.parentChainCode
-    this.appId = opts.appId
-    this.appPrivateKey = opts.appPrivateKey
-    this.appPublicKey = opts.appPublicKey
-    this.accounts = opts.accounts
-    this.ETH = new cwsETH(this.transport, this.appPrivateKey, this.appId)
+    this.hdPath = opts.hdPath || ''
+    this.bridgeUrl = opts.bridgeUrl || BRIDGE_URL
+    this.accounts = opts.accounts || []
     return Promise.resolve()
   }
 
-  connectWallet() {
+  isUnlocked() {
+    
+    const result = !!(this.hdk && this.hdk.publicKey)
+    console.log(`check is unlocked  ${result}`)
+    return result
+  }
+
+  setAccountToUnlock(index) {
+    console.log(`[setAccountToUnlock]`)
+    this.unlockedAccount = parseInt(index, 10)
+  }
+
+  setHdPath(hdPath) {
+    console.log(`call setHDPath`)
+  }
+
+  unlock(addrIndex) {
+    console.log(`Unlock with ${addrIndex}`)
+    if (this.isUnlocked() && typeof addrIndex === 'undefined') return Promise.resolve('already unlocked')
+    if (this.isUnlocked() && typeof addrIndex === 'number' ) {
+      console.log(`already unlocked, return derived key ${addrIndex}`)
+      console.log(this._addressFromIndex(addrIndex))
+      return this._addressFromIndex(addrIndex)
+    } 
+    // unlock: get publickey and chainCodes
     return new Promise((resolve, reject) => {
-      if (this.transport.connected) resolve('already connected')
-      this.transport.connect().then(
-        _ => {
-          resolve('connected')
+      addrIndex = addrIndex | 0
+      this._sendMessage(
+        {
+          action: 'coolwallet-unlock',
+          params: {
+            addrIndex,
+          },
         },
-        error => {
-          reject('connected to card error: ' + error)
+        ({ success, payload }) => {
+          console.log(payload)
+          if (success) {
+            this.hdk.publicKey = new Buffer(payload.parentPublicKey, 'hex')
+            this.hdk.chainCode = new Buffer(payload.parentChainCode, 'hex')
+            const address = this._addressFromPublicKey(Buffer.from(payload.publicKey, 'hex'))
+            console.log(`address [${addrIndex}]: ${address}`) 
+            resolve(address) 
+          } else {
+            reject(payload.error || 'Unknown error')
+          }
         }
       )
     })
   }
 
-  /**
-   * Unlocked of CWS means you have access to all the public keys. (Not connected to device.)
-   */
-  isUnlocked() {
-    return !!(this.hdk && this.hdk.publicKey)
-  }
-
-  /**
-   * Get access to public keys.
-   */
-  unlock() {
-    if (this.isUnlocked()) return Promise.resolve('already unlocked')
-    return new Promise((resolve, reject) => {
-      this.connectWallet().then(() => {
-        this.ETH.getPublicKey(0)
-          .then(payload => {
-            this.hdk.publicKey = new Buffer(payload.parentPublicKey, 'hex')
-            this.hdk.chainCode = new Buffer(payload.parentChainCode, 'hex')
-            resolve('just unlocked')
-          })
-          .catch(e => {
-            reject(new Error((e && e.toString()) || 'Unknown error'))
-          })
-      })
-    })
-  }
-
-  setAccountToUnlock(index) {
-    this.unlockedAccount = parseInt(index, 10)
-  }
-
   addAccounts(n = 1) {
+    console.log(`[addAccount]`)
     return new Promise((resolve, reject) => {
       this.unlock()
-        .then(_ => {
+        .then(async _ => {
           const from = this.unlockedAccount
           const to = from + n
           this.accounts = []
-
           for (let i = from; i < to; i++) {
-            const address = this._addressFromIndex(i).address
+            let address = await this.unlock(i)
             this.accounts.push(address)
             this.page = 0
           }
@@ -112,48 +110,15 @@ class CoolWalletSKeyring extends EventEmitter {
 
   getFirstPage() {
     this.page = 0
-    return this._getPage(1)
+    return this.__getPage(1)
   }
 
   getNextPage() {
-    return this._getPage(1)
+    return this.__getPage(1)
   }
 
   getPreviousPage() {
-    return this._getPage(-1)
-  }
-
-  _getPage(increment) {
-    this.page += increment
-
-    if (this.page <= 0) {
-      this.page = 1
-    }
-
-    return new Promise((resolve, reject) => {
-      this.unlock()
-        .then(_ => {
-          const from = (this.page - 1) * this.perPage
-          const to = from + this.perPage
-
-          const accounts = []
-
-          for (let i = from; i < to; i++) {
-            const { address, publicKey } = this._addressFromIndex(i)
-            accounts.push({
-              address: address,
-              balance: null,
-              index: i,
-            })
-            this.paths[ethUtil.toChecksumAddress(address)] = i
-            this.pubkeys[i] = publicKey
-          }
-          resolve(accounts)
-        })
-        .catch(e => {
-          reject(e)
-        })
-    })
+    return this.__getPage(-1)
   }
 
   getAccounts() {
@@ -167,115 +132,172 @@ class CoolWalletSKeyring extends EventEmitter {
     this.accounts = this.accounts.filter(a => a.toLowerCase() !== address.toLowerCase())
   }
 
-  /**
-   *
-   * @param {string} address
-   * @param {Transaction} tx
-   */
+  // tx is an instance of the ethereumjs-transaction class.
   signTransaction(address, tx) {
     return new Promise((resolve, reject) => {
-      this.connectWallet()
-        .then(() => {
-          this.unlock().then(status => {
-            setTimeout(
-              _ => {
-                const { index, publicKey } = this._indexFromAddress(address)
-                this.ETH.signTransaction(
-                  {
-                    nonce: this._normalize(tx.nonce),
-                    gasPrice: this._normalize(tx.gasPrice),
-                    gasLimit: this._normalize(tx.gasLimit),
-                    to: this._normalize(tx.to),
-                    value: this._normalize(tx.value),
-                    data: this._normalize(tx.data),
-                    chainId: tx._chainId,
-                  },
-                  index,
-                  publicKey
-                )
-                  .then(hex => {
-                    const signedTx = new Transaction(hex)
-                    const addressSignedWith = ethUtil.toChecksumAddress(`0x${signedTx.from.toString('hex')}`)
-                    const correctAddress = ethUtil.toChecksumAddress(address)
-                    if (addressSignedWith !== correctAddress) {
-                      reject(new Error('signature doesnt match the right address'))
-                    }
-                    resolve(signedTx)
-                  })
-                  .catch(e => {
-                    reject(new Error((e && e.toString()) || 'Unknown error'))
-                  })
-              },
-              status === 'just unlocked' ? DELAY_BETWEEN_POPUPS : 0
-            )
-          })
-        })
-        .catch(e => {
-          reject(new Error((e && e.toString()) || 'Unknown error'))
-        })
+      this.unlock().then(_ => {
+        const addrIndex = this._indexFromAddress(address)
+        const transaction = {
+          to: this._normalize(tx.to),
+          value: this._normalize(tx.value),
+          data: this._normalize(tx.data),
+          chainId: tx._chainId,
+          nonce: this._normalize(tx.nonce),
+          gasLimit: this._normalize(tx.gasLimit),
+          gasPrice: this._normalize(tx.gasPrice),
+        }
+
+        this._sendMessage(
+          {
+            action: 'coolwallet-sign-transaction',
+            params: {
+              tx: transaction,
+              addrIndex,
+            },
+          },
+          ({ success, payload }) => {
+            if (success) {
+              const { v, r, s } = this.getSigFromPayload(payload)
+              tx.v = v
+              tx.r = r
+              tx.s = s
+              const valid = tx.verifySignature()
+              if (valid) {
+                resolve(tx)
+              } else {
+                reject(new Error('CoolWalletS: The transaction signature is not valid'))
+              }
+            } else {
+              reject(new Error(payload.error || 'CoolWalletS: Unknown error while signing transaction'))
+            }
+          }
+        )
+      })
     })
   }
 
-  signMessage(withAccount, message) {
+  getSigFromPayload(payload){
+    const fields = rlp.decode(payload)
+    return {
+      v: fields[6],
+      r: fields[7],
+      s: fields[8]
+    }
+  }
+
+  signMessage(withAccount, data) {
+    return this.signPersonalMessage(withAccount, data)
+  }
+
+  // For personal_sign, we need to prefix the message:
+  signPersonalMessage(withAccount, message) {
     return new Promise((resolve, reject) => {
       this.unlock().then(_ => {
-        this.connectWallet().then(_ => {
-          let { index, publicKey } = this._indexFromAddress(withAccount)
-          this.ETH.signMessage(message, index, publicKey).then(
-            signature => {
-              resolve(signature)
+        const addrIndex = _indexFromAddress(withAccount)
+
+        this._sendMessage(
+          {
+            action: 'coolwallet-sign-personal-message',
+            params: {
+              addrIndex,
+              message: ethUtil.stripHexPrefix(message),
             },
-            error => reject('signig error' + error)
-          )
-        })
+          },
+          ({ success, payload }) => {
+            if (success) {
+              resolve(payload.signature)
+            } else {
+              reject(new Error(payload.error || 'CoolWalletS: Uknown error while signing message'))
+            }
+          }
+        )
       })
     })
   }
 
   signTypedData(withAccount, typedData) {
-    return new Promise((resolve, reject) => {
-      this.unlock().then(_ => {
-        this.connectWallet().then(_ => {
-          let { index, publicKey } = this._indexFromAddress(withAccount)
-          this.ETH.signTypedData(typedData, index, publicKey).then(
-            signature => {
-              resolve(signature)
-            },
-            error => reject('signig error' + error)
-          )
-        })
-      })
-    })
+    throw new Error('Not supported on this device')
   }
 
-  exportAccount() {
-    return Promise.reject(new Error('Not supported on this device'))
+  exportAccount(address) {
+    throw new Error('Not supported on this device')
   }
 
   forgetDevice() {
     this.accounts = []
-    this.hdk = new HDKey()
     this.page = 0
     this.unlockedAccount = 0
     this.paths = {}
-    this.pubkeys = {}
+    this.hdk = new HDKey()
   }
 
   /* PRIVATE METHODS */
 
-  _normalize(buf) {
-    return ethUtil.bufferToHex(buf).toString()
+  _setupIframe() {
+    this.iframe = document.createElement('iframe')
+    this.iframe.src = this.bridgeUrl
+    document.head.appendChild(this.iframe)
   }
 
-  /**
-   * @param {number} i index
-   * @return { publicKey: string, address: string }
-   */
+  _sendMessage(msg, cb) {
+    msg.target = 'CWS-IFRAME'
+    this.iframe.contentWindow.postMessage(msg, '*')
+    
+    window.addEventListener('message', ({ data }) => {
+      if (data && data.action && data.action === `${msg.action}-reply`) {
+        cb(data)
+      }
+    })
+  }
+
+  __getPage(increment) {
+    this.page += increment
+
+    if (this.page <= 0) {
+      this.page = 1
+    }
+    const from = (this.page - 1) * this.perPage
+    const to = from + this.perPage
+
+    return new Promise((resolve, reject) => {
+      this.unlock().then(async _ => {
+        let accounts = this._getAccounts(from, to)
+        resolve(accounts)
+      })
+    })
+  }
+
+  _getAccounts(from, to) {
+    const accounts = []
+
+    for (let i = from; i < to; i++) {
+      const address = this._addressFromIndex(i)
+      accounts.push({
+        address: address,
+        balance: null,
+        index: i,
+      })
+      this.paths[ethUtil.toChecksumAddress(address)] = i
+    }
+    return accounts
+  }
+
+  _padLeftEven(hex) {
+    return hex.length % 2 !== 0 ? `0${hex}` : hex
+  }
+
+  _normalize(buf) {
+    return this._padLeftEven(ethUtil.bufferToHex(buf).toLowerCase())
+  }
+
   _addressFromIndex(i) {
-    const pubkeyBuf = this.hdk.derive(`${i}`).publicKey
-    let address = ethUtil.publicToAddress(pubkeyBuf, true).toString('hex')
-    address = ethUtil.toChecksumAddress(address)
-    return { address, publicKey: pubkeyBuf.toString('hex') }
+    const dkey = this.hdk.derive(`m/${i}`)
+    return this._addressFromPublicKey(dkey.publicKey)
+  }
+
+  _addressFromPublicKey(publicKey) {
+    const address = ethUtil.pubToAddress(publicKey, true).toString('hex')
+    return ethUtil.toChecksumAddress(address)
   }
 
   _indexFromAddress(address) {
@@ -283,7 +305,7 @@ class CoolWalletSKeyring extends EventEmitter {
     let index = this.paths[checksummedAddress]
     if (typeof index === 'undefined') {
       for (let i = 0; i < MAX_INDEX; i++) {
-        if (checksummedAddress === this._addressFromIndex(pathBase, i).address) {
+        if (checksummedAddress === this._addressFromIndex(i)) {
           index = i
           break
         }
@@ -293,10 +315,9 @@ class CoolWalletSKeyring extends EventEmitter {
     if (typeof index === 'undefined') {
       throw new Error('Unknown address')
     }
-    let publicKey = this.pubkeys[index]
-    return { index, publicKey }
+    return index
   }
 }
 
-CoolWalletSKeyring.type = type
-module.exports = CoolWalletSKeyring
+CoolWalletKeyRing.type = type
+module.exports = CoolWalletKeyRing
