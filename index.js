@@ -137,6 +137,7 @@ class CoolWalletKeyRing extends EventEmitter {
     return new Promise((resolve, reject) => {
       this.unlock().then(_ => {
         const addrIndex = this._indexFromAddress(address)
+        const publicKey = this._publicKeyFromIndex(addrIndex).toString('hex')
         const transaction = {
           to: this._normalize(tx.to),
           value: this._normalize(tx.value),
@@ -153,6 +154,7 @@ class CoolWalletKeyRing extends EventEmitter {
             params: {
               tx: transaction,
               addrIndex,
+              publicKey
             },
           },
           ({ success, payload }) => {
@@ -194,13 +196,14 @@ class CoolWalletKeyRing extends EventEmitter {
     return new Promise((resolve, reject) => {
       this.unlock().then(_ => {
         const addrIndex = _indexFromAddress(withAccount)
-
+        const publicKey = this._publicKeyFromIndex(addrIndex).toString('hex')
         this._sendMessage(
           {
             action: 'coolwallet-sign-personal-message',
             params: {
               addrIndex,
               message: ethUtil.stripHexPrefix(message),
+              publicKey
             },
           },
           ({ success, payload }) => {
@@ -290,9 +293,14 @@ class CoolWalletKeyRing extends EventEmitter {
     return this._padLeftEven(ethUtil.bufferToHex(buf).toLowerCase())
   }
 
-  _addressFromIndex(i) {
+  _publicKeyFromIndex(i){
     const dkey = this.hdk.derive(`m/${i}`)
-    return this._addressFromPublicKey(dkey.publicKey)
+    return dkey.publicKey
+  }
+
+  _addressFromIndex(i) {
+    const pubkeyBuf = this._publicKeyFromIndex(i)
+    return this._addressFromPublicKey(pubkeyBuf)
   }
 
   _addressFromPublicKey(publicKey) {
