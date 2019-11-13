@@ -219,7 +219,29 @@ class CoolWalletKeyRing extends EventEmitter {
   }
 
   signTypedData(withAccount, typedData) {
-    throw new Error('Not supported on this device')
+    return new Promise((resolve, reject) => {
+      this.unlock().then(_ => {
+        const addrIndex = _indexFromAddress(withAccount)
+        const publicKey = this._publicKeyFromIndex(addrIndex).toString('hex')
+        this._sendMessage(
+          {
+            action: 'coolwallet-sign-typed-data',
+            params: {
+              addrIndex,
+              typedData,
+              publicKey
+            },
+          },
+          ({ success, payload }) => {
+            if (success) {
+              resolve(payload.signature)
+            } else {
+              reject(new Error(payload.error || 'CoolWalletS: Uknown error while signing typed data'))
+            }
+          }
+        )
+      })
+    })
   }
 
   exportAccount(address) {
