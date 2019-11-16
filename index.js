@@ -17,48 +17,39 @@ class CoolWalletKeyRing extends EventEmitter {
     this.hdk = new HDKey()
     this.paths = {}
     this.iframe = null
-    this.network = 'mainnet'
     this.deserialize(opts)
     this._setupIframe()
   }
 
   serialize() {
     return Promise.resolve({
-      hdPath: this.hdPath,
       accounts: this.accounts,
       bridgeUrl: this.bridgeUrl,
+      parentPublicKey: this.hdk.publicKey.toString('hex'),
+      parentChainCode: this.hdk.chainCode.toString('hex')
     })
   }
 
   deserialize(opts = {}) {
-    this.hdPath = opts.hdPath || ''
     this.bridgeUrl = opts.bridgeUrl || BRIDGE_URL
     this.accounts = opts.accounts || []
+    if (opts.parentPublicKey) this.hdk.publicKey = new Buffer(opts.parentPublicKey, 'hex')
+    if (opts.parentChainCode) this.hdk.chainCode = new Buffer(opts.parentChainCode, 'hex')
     return Promise.resolve()
   }
 
-  isUnlocked() {
-    
+  hasAccountKey() {
     const result = !!(this.hdk && this.hdk.publicKey)
-    console.log(`check is unlocked  ${result}`)
     return result
   }
 
   setAccountToUnlock(index) {
-    console.log(`[setAccountToUnlock]`)
     this.unlockedAccount = parseInt(index, 10)
   }
 
-  setHdPath(hdPath) {
-    console.log(`call setHDPath`)
-  }
-
   unlock(addrIndex) {
-    console.log(`Unlock with ${addrIndex}`)
-    if (this.isUnlocked() && typeof addrIndex === 'undefined') return Promise.resolve('already unlocked')
-    if (this.isUnlocked() && typeof addrIndex === 'number' ) {
-      console.log(`already unlocked, return derived key ${addrIndex}`)
-      console.log(this._addressFromIndex(addrIndex))
+    if (this.hasAccountKey() && typeof addrIndex === 'undefined') return Promise.resolve('already unlocked')
+    if (this.hasAccountKey() && typeof addrIndex === 'number' ) {
       return this._addressFromIndex(addrIndex)
     } 
     // unlock: get publickey and chainCodes
@@ -72,12 +63,10 @@ class CoolWalletKeyRing extends EventEmitter {
           },
         },
         ({ success, payload }) => {
-          console.log(payload)
           if (success) {
             this.hdk.publicKey = new Buffer(payload.parentPublicKey, 'hex')
             this.hdk.chainCode = new Buffer(payload.parentChainCode, 'hex')
             const address = this._addressFromPublicKey(Buffer.from(payload.publicKey, 'hex'))
-            console.log(`address [${addrIndex}]: ${address}`) 
             resolve(address) 
           } else {
             reject(payload.error || 'Unknown error')
@@ -88,7 +77,6 @@ class CoolWalletKeyRing extends EventEmitter {
   }
 
   addAccounts(n = 1) {
-    console.log(`[addAccount]`)
     return new Promise((resolve, reject) => {
       this.unlock()
         .then(async _ => {
@@ -195,20 +183,20 @@ class CoolWalletKeyRing extends EventEmitter {
   signPersonalMessage(withAccount, message) {
     return new Promise((resolve, reject) => {
       this.unlock().then(_ => {
-        const addrIndex = _indexFromAddress(withAccount)
+        const addrIndex = this._indexFromAddress(withAccount)
         const publicKey = this._publicKeyFromIndex(addrIndex).toString('hex')
         this._sendMessage(
           {
             action: 'coolwallet-sign-personal-message',
             params: {
               addrIndex,
-              message: ethUtil.stripHexPrefix(message),
+              message,
               publicKey
             },
           },
           ({ success, payload }) => {
             if (success) {
-              resolve(payload.signature)
+              resolve(payload)
             } else {
               reject(new Error(payload.error || 'CoolWalletS: Uknown error while signing message'))
             }
@@ -221,7 +209,7 @@ class CoolWalletKeyRing extends EventEmitter {
   signTypedData(withAccount, typedData) {
     return new Promise((resolve, reject) => {
       this.unlock().then(_ => {
-        const addrIndex = _indexFromAddress(withAccount)
+        const addrIndex = this._indexFromAddress(withAccount)
         const publicKey = this._publicKeyFromIndex(addrIndex).toString('hex')
         this._sendMessage(
           {
@@ -234,7 +222,7 @@ class CoolWalletKeyRing extends EventEmitter {
           },
           ({ success, payload }) => {
             if (success) {
-              resolve(payload.signature)
+              resolve(payload)
             } else {
               reject(new Error(payload.error || 'CoolWalletS: Uknown error while signing typed data'))
             }
