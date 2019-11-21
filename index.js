@@ -2,7 +2,7 @@ const { EventEmitter } = require('events')
 const HDKey = require('hdkey')
 const ethUtil = require('ethereumjs-util')
 const type = 'CoolWalletS'
-const BRIDGE_URL = 'https://antoncoding.github.io'
+const BRIDGE_URL = 'https://coolwallets-connect.herokuapp.com/'
 const MAX_INDEX = 1000
 const rlp = require('rlp')
 
@@ -232,7 +232,7 @@ class CoolWalletKeyRing extends EventEmitter {
     })
   }
 
-  exportAccount(address) {
+  exportAccount() {
     throw new Error('Not supported on this device')
   }
 
