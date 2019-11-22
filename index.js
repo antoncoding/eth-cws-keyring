@@ -2,7 +2,7 @@ const { EventEmitter } = require('events')
 const HDKey = require('hdkey')
 const ethUtil = require('ethereumjs-util')
 const type = 'CoolWalletS'
-const BRIDGE_URL = 'https://coolwallets-connect.herokuapp.com/'
+const BRIDGE_URL = 'https://localhost:3000/iframe'
 const MAX_INDEX = 1000
 const rlp = require('rlp')
 
