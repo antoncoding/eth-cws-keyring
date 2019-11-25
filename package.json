@@ -1,6 +1,6 @@
 {
   "name": "eth-cws-keyring",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "MetaMask Keyring wrapper on CoolWalletConnect site ",
   "main": "index.js",
   "scripts": {
