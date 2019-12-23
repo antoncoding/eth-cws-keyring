@@ -2,7 +2,7 @@ const { EventEmitter } = require('events')
 const HDKey = require('hdkey')
 const ethUtil = require('ethereumjs-util')
 const type = 'CoolWalletS'
-const BRIDGE_URL = 'https://noraliu0830.github.io/cws-web-flow/#/iframe'
+const BRIDGE_URL = 'https://coolbitx-technology.github.io/coolwallet-connect/#/iframe'
 const MAX_INDEX = 1000
 const rlp = require('rlp')
 
