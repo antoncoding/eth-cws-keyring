@@ -274,8 +274,12 @@ class CoolWalletKeyRing extends EventEmitter {
 
     return new Promise((resolve, reject) => {
       this.unlock().then(async _ => {
-        let accounts = this._getAccounts(from, to)
-        resolve(accounts)
+        try{
+          let accounts = this._getAccounts(from, to)
+          resolve(accounts)
+        } catch(error) {
+          reject(error)
+        }
       })
     })
   }
