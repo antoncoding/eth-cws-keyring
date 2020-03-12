@@ -1,6 +1,6 @@
 {
   "name": "eth-cws-keyring",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "MetaMask Keyring wrapper on CoolWalletConnect site ",
   "main": "index.js",
   "scripts": {
@@ -17,7 +17,9 @@
   },
   "homepage": "https://github.com/antoncoding/eth-cws-keyring#readme",
   "peerDependencies": {
-    "ethereumjs-util": "^5.1.0",
+    "ethereumjs-util": "^5.1.0"
+  },
+  "dependencies": {
     "rlp": "^2.0.0"
   },
   "devDependencies": {
