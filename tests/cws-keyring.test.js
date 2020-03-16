@@ -34,7 +34,7 @@ const fakeMessageSignature = '0xmessagesignature';
 const fakeTypeDataSignature = '0xTypedDataSignature';
 const unexistingAccount = '0x0000000000000000000000000000000000000000';
 
-const mockSendMessage = jest.fn(({ action }, callback) => {
+const mockSendMessageSuccess = jest.fn(({ action }, callback) => {
   switch (action) {
     case 'coolwallet-unlock': {
       callback({
@@ -74,10 +74,17 @@ const mockSendMessage = jest.fn(({ action }, callback) => {
   }
 });
 
+const mockSendMessageFail = jest.fn(({}, callback) => {
+  callback({
+    success: false,
+    payload: { error: 'CoolWalletS Error: Not registered' },
+  });
+});
+
 beforeEach(async function() {
   keyring = new CoolWalletKeyRing();
   keyring.hdk = fakeHdKey;
-  keyring._sendMessage = mockSendMessage;
+  keyring._sendMessage = mockSendMessageSuccess;
 });
 
 describe('keyring type', () => {
@@ -287,7 +294,7 @@ describe('getAccounts', function() {
     expect(accounts.length).toBe(1);
   });
 
-  it('returns the expected', function() {
+  it('returns the expected accounts', function() {
     const expectedAccount = fakeAccounts[accountIndex];
     expect(accounts[0]).toBe(expectedAccount);
   });
@@ -309,6 +316,15 @@ describe('signTransaction', function() {
       expect(tx.verifySignature()).toBe(true);
     });
   });
+
+  describe('error occured in bridge server', () => {
+    it('should throw CoolWalletS error', async () => {
+      keyring._sendMessage = mockSendMessageFail
+      await expect(
+        keyring.signTransaction(fakeAccounts[0], fakeTransaction)
+      ).rejects.toThrow('CoolWalletS Error: Not registered');
+    });
+  });
 });
 
 describe('signMessage', function() {
@@ -327,6 +343,15 @@ describe('signMessage', function() {
       expect(signature).toBe(fakeMessageSignature);
     });
   });
+
+  describe('error occured in bridge server', () => {
+    it('should throw CoolWalletS error', async () => {
+      keyring._sendMessage = mockSendMessageFail
+      await expect(
+        keyring.signMessage(fakeAccounts[0], 'message')
+      ).rejects.toThrow('CoolWalletS Error: Not registered');
+    });
+  });
 });
 
 describe('signTypedData', function () {
@@ -343,6 +368,15 @@ describe('signTypedData', function () {
       const signature = await keyring.signTypedData(fakeAccounts[0], {});
       expect(keyring._sendMessage).toHaveBeenCalled();
       expect(signature).toBe(fakeTypeDataSignature);
+    });
+  });
+
+  describe('error occured in bridge server', () => {
+    it('should throw CoolWalletS error', async () => {
+      keyring._sendMessage = mockSendMessageFail
+      await expect(
+        keyring.signTypedData(fakeAccounts[0], {})
+      ).rejects.toThrow('CoolWalletS Error: Not registered');
     });
   });
 })
