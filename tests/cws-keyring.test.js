@@ -176,6 +176,16 @@ describe('addAccounts', () => {
       const accounts = await keyring.addAccounts();
       expect(accounts.length).toBe(1);
     });
+
+    it('throw if bridge server throw error', async ()=>{
+      keyring.forgetDevice()
+      keyring._sendMessage = mockSendMessageFail
+      try {
+        await keyring.addAccounts()
+      } catch(error){
+        expect(error).toBe('CoolWalletS Error: Not registered')
+      }
+    })
   });
 
   describe('with a numeric argument', () => {
@@ -410,7 +420,7 @@ describe('forgetDevice', function () {
   })
 })
 
-describe('event listener', () => {
+describe('window eventListener', () => {
   const newKeyRing = new CoolWalletKeyRing()
   window.addEventListener = jest.fn()
   it('should add event listener', () => {
