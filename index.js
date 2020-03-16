@@ -81,7 +81,7 @@ class CoolWalletKeyRing extends EventEmitter {
   addAccounts(n = 1) {
     return new Promise((resolve, reject) => {
       this.unlock()
-        .then(async _ => {
+        .then(async () => {
           const from = this.unlockedAccount
           const to = from + n
           this.accounts = []
@@ -125,7 +125,7 @@ class CoolWalletKeyRing extends EventEmitter {
   // tx is an instance of the ethereumjs-transaction class.
   signTransaction(address, tx) {
     return new Promise((resolve, reject) => {
-      this.unlock().then(_ => {
+      this.unlock().then(() => {
         const addrIndex = this._indexFromAddress(address)
         const publicKey = this._publicKeyFromIndex(addrIndex).toString('hex')
         const transaction = {
@@ -187,7 +187,7 @@ class CoolWalletKeyRing extends EventEmitter {
   // The message will be prefixed in the sdk
   signPersonalMessage(withAccount, message) {
     return new Promise((resolve, reject) => {
-      this.unlock().then(_ => {
+      this.unlock().then(() => {
         const addrIndex = this._indexFromAddress(withAccount)
         const publicKey = this._publicKeyFromIndex(addrIndex).toString('hex')
         this._sendMessage(
@@ -213,7 +213,7 @@ class CoolWalletKeyRing extends EventEmitter {
 
   signTypedData(withAccount, typedData) {
     return new Promise((resolve, reject) => {
-      this.unlock().then(_ => {
+      this.unlock().then(() => {
         const addrIndex = this._indexFromAddress(withAccount)
         const publicKey = this._publicKeyFromIndex(addrIndex).toString('hex')
         this._sendMessage(
@@ -278,7 +278,7 @@ class CoolWalletKeyRing extends EventEmitter {
     const to = from + this.perPage
 
     return new Promise((resolve, reject) => {
-      this.unlock().then(async _ => {
+      this.unlock().then(async () => {
         try{
           let accounts = this._getAccounts(from, to)
           resolve(accounts)

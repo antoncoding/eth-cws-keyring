@@ -34,7 +34,7 @@ const fakeMessageSignature = '0xmessagesignature';
 const fakeTypeDataSignature = '0xTypedDataSignature';
 const unexistingAccount = '0x0000000000000000000000000000000000000000';
 
-const mockSendMessage = jest.fn(({ action, params }, callback) => {
+const mockSendMessage = jest.fn(({ action }, callback) => {
   switch (action) {
     case 'coolwallet-unlock': {
       callback({
