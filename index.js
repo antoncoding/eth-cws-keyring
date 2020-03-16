@@ -153,6 +153,7 @@ class CoolWalletKeyRing extends EventEmitter {
               tx.v = v
               tx.r = r
               tx.s = s
+              resolve(tx)
               const valid = tx.verifySignature()
               if (valid) {
                 resolve(tx)
@@ -164,6 +165,8 @@ class CoolWalletKeyRing extends EventEmitter {
             }
           }
         )
+      }).catch(error => {
+        reject(error)
       })
     })
   }
@@ -181,7 +184,7 @@ class CoolWalletKeyRing extends EventEmitter {
     return this.signPersonalMessage(withAccount, data)
   }
 
-  // For personal_sign, we need to prefix the message:
+  // The message will be prefixed in the sdk
   signPersonalMessage(withAccount, message) {
     return new Promise((resolve, reject) => {
       this.unlock().then(_ => {
@@ -204,7 +207,7 @@ class CoolWalletKeyRing extends EventEmitter {
             }
           }
         )
-      })
+      }).catch(error => reject(error))
     })
   }
 
@@ -230,7 +233,7 @@ class CoolWalletKeyRing extends EventEmitter {
             }
           }
         )
-      })
+      }).catch(error => reject(error))
     })
   }
 
