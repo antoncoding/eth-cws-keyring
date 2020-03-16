@@ -26,15 +26,17 @@ class CoolWalletKeyRing extends EventEmitter {
       accounts: this.accounts,
       bridgeUrl: this.bridgeUrl,
       parentPublicKey: this.hdk.publicKey.toString('hex'),
-      parentChainCode: this.hdk.chainCode.toString('hex')
+      parentChainCode: this.hdk.chainCode.toString('hex'),
+      page: this.page
     })
   }
 
   deserialize(opts = {}) {
     this.bridgeUrl = opts.bridgeUrl || BRIDGE_URL
     this.accounts = opts.accounts || []
-    if (opts.parentPublicKey) this.hdk.publicKey = new Buffer(opts.parentPublicKey, 'hex')
-    if (opts.parentChainCode) this.hdk.chainCode = new Buffer(opts.parentChainCode, 'hex')
+    this.page = opts.page || 0
+    if (opts.parentPublicKey) this.hdk.publicKey = Buffer.from(opts.parentPublicKey, 'hex')
+    if (opts.parentChainCode) this.hdk.chainCode = Buffer.from(opts.parentChainCode, 'hex')
     return Promise.resolve()
   }
 
@@ -64,8 +66,8 @@ class CoolWalletKeyRing extends EventEmitter {
         },
         ({ success, payload }) => {
           if (success) {
-            this.hdk.publicKey = new Buffer(payload.parentPublicKey, 'hex')
-            this.hdk.chainCode = new Buffer(payload.parentChainCode, 'hex')
+            this.hdk.publicKey = Buffer.from(payload.parentPublicKey, 'hex')
+            this.hdk.chainCode = Buffer.from(payload.parentChainCode, 'hex')
             const address = this._addressFromPublicKey(Buffer.from(payload.publicKey, 'hex'))
             resolve(address) 
           } else {
