@@ -3,21 +3,16 @@ import HDKey from 'hdkey';
 import { Transaction } from 'ethereumjs-tx';
 
 const fakeAccounts = [
-  '0xF30952A1c534CDE7bC471380065726fa8686dfB3',
-  '0x44fe3Cf56CaF651C4bD34Ae6dbcffa34e9e3b84B',
-  '0x8Ee3374Fa705C1F939715871faf91d4348D5b906',
-  '0xEF69e24dE9CdEe93C4736FE29791E45d5D4CFd6A',
-  '0xC668a5116A045e9162902795021907Cb15aa2620',
-  '0xbF519F7a6D8E72266825D770C60dbac55a3baeb9',
-  '0x0258632Fe2F91011e06375eB0E6f8673C0463204',
-  '0x4fC1700C0C61980aef0Fb9bDBA67D8a25B5d4335',
-  '0xeEC5D417152aE295c047FB0B0eBd7c7090dDedEb',
-  '0xd3f978B9eEEdB68A38CF252B3779afbeb3623fDf',
-  '0xd819fE2beD53f44825F66873a159B687736d3092',
-  '0xE761dA62f053ad9eE221d325657535991Ab659bD',
-  '0xd4F1686961642340a80334b5171d85Bbd390c691',
-  '0x6772C4B1E841b295960Bb4662dceD9bb71726357',
-  '0x41bEAD6585eCA6c79B553Ca136f0DFA78A006899',
+  '0xbAF99eD5b5663329FA417953007AFCC60f06F781',
+  '0x0644De2A0Cf3f11Ef6Ad89C264585406Ea346a96',
+  '0xB2F8613E310e5431eb4f2E22F5c85AF407D5C1C5',
+  '0x3d505D598a365Ce0889ee8f97D0860da4CAdA96c',
+  '0x88744E3733d1A5Aeb5cb7bD0B9eaAC470A36807D',
+  '0x19D515A1a8F1F249d8098A2fD5c6B7Aa7B05dA1f',
+  '0xBff22492cB6E771cf8633B3DEFc89FF883b3be63',
+  '0x1E6749E5Ec9390F3C68BF9a35D12b5c05058B08f',
+  '0x87b4dF4c8d2EE0249Da25fabB1Dfc1500a64F9f7',
+  '0xEc9064De11CFdDb8B46E8cA22Db8Db0d566899cE',
 ];
 
 const fakeXPubKey =
@@ -35,20 +30,48 @@ const fakeTransaction = new Transaction({
 
 let keyring;
 
+const fakeMessageSignature = '0xmessagesignature';
+const fakeTypeDataSignature = '0xTypedDataSignature';
+const unexistingAccount = '0x0000000000000000000000000000000000000000';
+
 const mockSendMessage = jest.fn(({ action, params }, callback) => {
   switch (action) {
     case 'coolwallet-unlock': {
       callback({
         success: true,
         payload: {
-          parentChainCode: '9452b549be8cea3ecb7a84bec10dcfd94afe4d129ebfd3b3cb58eedf394ed271',
-          parentPublicKey: '024d902e1a2fc7a8755ab5b694c575fce742c48d9ff192e63df5193e4c7afe1f9c',
-          publicKey: '031c0517fff3d483f06ca769bd2326bf30aca1c4de278e676e6ef760c3301244c6',
+          parentChainCode: 'cfa8134ff19fd1c746233f7090439a11cc76e85fb2ca647534ad1f945aa642a9',
+          parentPublicKey: '0389a94efa3e5384a4cc3fc01a368ce3e10bb0883f6f61a32c58fe6e6b089f6dc2',
+          publicKey: '033a057e1f19ea73423bd75f4d391dd28145636081bf0c2674f89fd6d04738f293',
         },
       });
     }
+    case 'coolwallet-sign-transaction': {
+      callback({
+        success: true,
+        payload:
+          '0xf86e82031b85012a05f20082520c940644de2a0cf3f11ef6ad89c264585406ea346a96880de0b6b3a76400008025a07cce23b352f3c1f11ef4833e76b3b0cb14ca17bb0097d197b307690a551d19eea0156703269448e84d2a82e07531375896fd6fc6e0478cdda876315611d4cad697',
+      });
+    }
+    case 'coolwallet-sign-personal-message': {
+      callback({
+        success: true,
+        payload: fakeMessageSignature,
+      });
+    }
+    case 'coolwallet-sign-typed-data': {
+      callback({
+        success: true,
+        payload: fakeTypeDataSignature,
+      });
+    }
+    default: {
+      callback({
+        success: false,
+        payload: { error: 'Unmocked function' },
+      });
+    }
   }
-  callback();
 });
 
 beforeEach(async function() {
@@ -91,12 +114,12 @@ describe('deserialize', () => {
       page: 10,
       accounts: [],
       bridgeUrl: 'https://coolbitx-technology.github.io/coolwallet-connect/#/iframe',
-      parentChainCode: '9452b549be8cea3ecb7a84bec10dcfd94afe4d129ebfd3b3cb58eedf394ed271',
-      parentPublicKey: '024d902e1a2fc7a8755ab5b694c575fce742c48d9ff192e63df5193e4c7afe1f9c',
+      parentChainCode: 'cfa8134ff19fd1c746233f7090439a11cc76e85fb2ca647534ad1f945aa642a9',
+      parentPublicKey: '0389a94efa3e5384a4cc3fc01a368ce3e10bb0883f6f61a32c58fe6e6b089f6dc2',
     });
     const output = await keyring.serialize();
-    expect(output.parentChainCode).toBe('9452b549be8cea3ecb7a84bec10dcfd94afe4d129ebfd3b3cb58eedf394ed271');
-    expect(output.parentPublicKey).toBe('024d902e1a2fc7a8755ab5b694c575fce742c48d9ff192e63df5193e4c7afe1f9c');
+    expect(output.parentChainCode).toBe('cfa8134ff19fd1c746233f7090439a11cc76e85fb2ca647534ad1f945aa642a9');
+    expect(output.parentPublicKey).toBe('0389a94efa3e5384a4cc3fc01a368ce3e10bb0883f6f61a32c58fe6e6b089f6dc2');
     expect(output.page).toBe(10);
     expect(Array.isArray(output.accounts)).toBe(true);
     expect(output.accounts.length).toBe(0);
@@ -154,3 +177,191 @@ describe('addAccounts', () => {
     });
   });
 });
+
+describe('removeAccount', function() {
+  describe('if the account exists', function() {
+    it('should remove that account', async () => {
+      keyring.setAccountToUnlock(0);
+      const accounts = await keyring.addAccounts();
+
+      expect(accounts.length).toBe(1);
+      keyring.removeAccount(fakeAccounts[0]);
+      const accountsAfterRemoval = await keyring.getAccounts();
+      expect(accountsAfterRemoval.length).toBe(0);
+    });
+  });
+
+  describe('if the account does not exist', function() {
+    it('should throw an error', function() {
+      expect(
+        jest.fn(() => {
+          keyring.removeAccount(unexistingAccount);
+        })
+      ).toThrow(`Address ${unexistingAccount} not found in this keyring`);
+    });
+  });
+});
+
+describe('getFirstPage', function() {
+  it('should set the currentPage to 1', async function() {
+    await keyring.getFirstPage();
+    expect(keyring.page).toBe(1);
+  });
+
+  it('should return the list of accounts for current page', async function() {
+    const accounts = await keyring.getFirstPage();
+
+    expect(accounts.length).toBe(keyring.perPage);
+    expect(accounts[0].address).toBe(fakeAccounts[0]);
+    expect(accounts[1].address).toBe(fakeAccounts[1]);
+    expect(accounts[2].address).toBe(fakeAccounts[2]);
+    expect(accounts[3].address).toBe(fakeAccounts[3]);
+    expect(accounts[4].address).toBe(fakeAccounts[4]);
+  });
+});
+
+describe('getNextPage', function() {
+  it('should return the list of accounts for current page', async () => {
+    const accounts = await keyring.getNextPage();
+    expect(accounts.length).toBe(keyring.perPage);
+    expect(accounts[0].address).toBe(fakeAccounts[0]);
+    expect(accounts[1].address).toBe(fakeAccounts[1]);
+    expect(accounts[2].address).toBe(fakeAccounts[2]);
+    expect(accounts[3].address).toBe(fakeAccounts[3]);
+    expect(accounts[4].address).toBe(fakeAccounts[4]);
+  });
+
+  it('should be able to advance to the next page', async () => {
+    // manually advance 1 page
+    await keyring.getNextPage();
+
+    const accounts = await keyring.getNextPage();
+    expect(accounts.length).toBe(keyring.perPage);
+    expect(accounts[0].address).toBe(fakeAccounts[keyring.perPage + 0]);
+    expect(accounts[1].address).toBe(fakeAccounts[keyring.perPage + 1]);
+    expect(accounts[2].address).toBe(fakeAccounts[keyring.perPage + 2]);
+    expect(accounts[3].address).toBe(fakeAccounts[keyring.perPage + 3]);
+    expect(accounts[4].address).toBe(fakeAccounts[keyring.perPage + 4]);
+  });
+});
+
+describe('getPreviousPage', function() {
+  it('should return the list of accounts for current page', async function() {
+    // manually advance 1 page
+    await keyring.getNextPage();
+    const accounts = await keyring.getPreviousPage();
+
+    expect(accounts.length).toBe(keyring.perPage);
+    expect(accounts[0].address).toBe(fakeAccounts[0]);
+    expect(accounts[1].address).toBe(fakeAccounts[1]);
+    expect(accounts[2].address).toBe(fakeAccounts[2]);
+    expect(accounts[3].address).toBe(fakeAccounts[3]);
+    expect(accounts[4].address).toBe(fakeAccounts[4]);
+  });
+
+  it('should be able to go back to the previous page', async function() {
+    // manually advance 1 page
+    await keyring.getNextPage();
+    const accounts = await keyring.getPreviousPage();
+
+    expect(accounts.length).toBe(keyring.perPage);
+    expect(accounts[0].address).toBe(fakeAccounts[0]);
+    expect(accounts[1].address).toBe(fakeAccounts[1]);
+    expect(accounts[2].address).toBe(fakeAccounts[2]);
+    expect(accounts[3].address).toBe(fakeAccounts[3]);
+    expect(accounts[4].address).toBe(fakeAccounts[4]);
+  });
+});
+
+describe('getAccounts', function() {
+  const accountIndex = 5;
+  let accounts = [];
+  beforeEach(async function() {
+    keyring.setAccountToUnlock(accountIndex);
+    await keyring.addAccounts();
+    accounts = await keyring.getAccounts();
+  });
+
+  it('returns an array of accounts', function() {
+    expect(Array.isArray(accounts)).toBe(true);
+    expect(accounts.length).toBe(1);
+  });
+
+  it('returns the expected', function() {
+    const expectedAccount = fakeAccounts[accountIndex];
+    expect(accounts[0]).toBe(expectedAccount);
+  });
+});
+
+describe('signTransaction', function() {
+  describe('sign with invalid account', () => {
+    it('should throw unknown address error', async () => {
+      await expect(
+        keyring.signTransaction(unexistingAccount, fakeTransaction)
+      ).rejects.toThrow('Unknown address');
+    });
+  });
+
+  describe('sign with valid account', function() {
+    it('should send signTransaction command', async () => {
+      const tx = await keyring.signTransaction(fakeAccounts[0], fakeTransaction);
+      expect(keyring._sendMessage).toHaveBeenCalled();
+      expect(tx.verifySignature()).toBe(true);
+    });
+  });
+});
+
+describe('signMessage', function() {
+  describe('sign with invalid account', () => {
+    it('should throw unkown address error', async () => {
+      await expect(
+        keyring.signMessage(unexistingAccount, 'message')
+      ).rejects.toThrow('Unknown address');
+    });
+  });
+
+  describe('sign with valid account', function() {
+    it('should send signMessage command', async () => {
+      const signature = await keyring.signMessage(fakeAccounts[0], 'some msg');
+      expect(keyring._sendMessage).toHaveBeenCalled();
+      expect(signature).toBe(fakeMessageSignature);
+    });
+  });
+});
+
+describe('signTypedData', function () {
+  describe('sign with invalid account', () => {
+    it('should throw unkown address error', async () => {
+      await expect(
+        keyring.signTypedData(unexistingAccount, {})
+      ).rejects.toThrow('Unknown address');
+    });
+  });
+
+  describe('sign with valid account', function() {
+    it('should send signTypedData command', async () => {
+      const signature = await keyring.signTypedData(fakeAccounts[0], {});
+      expect(keyring._sendMessage).toHaveBeenCalled();
+      expect(signature).toBe(fakeTypeDataSignature);
+    });
+  });
+})
+
+describe('exportAccount', function () {
+  it('should throw an error because it is not supported', () => {
+    expect(keyring.exportAccount).toThrow('Not supported on this device');
+  })
+})
+
+describe('forgetDevice', function () {
+  it('should clear the content of the keyring', async () => {
+      // Add an account
+      keyring.setAccountToUnlock(0)
+      await keyring.addAccounts()
+
+      // Wipe the keyring
+      keyring.forgetDevice()
+      const accounts = await keyring.getAccounts()
+      expect(accounts.length).toBe(0)
+  })
+})
