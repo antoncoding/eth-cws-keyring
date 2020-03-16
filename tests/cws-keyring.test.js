@@ -97,9 +97,9 @@ describe('keyring type', () => {
 
 describe('constructor', function() {
   it('constructs', async () => {
-    const t = new CoolWalletKeyRing();
-    expect(typeof t).toBe('object');
-    const accounts = await t.getAccounts();
+    const cwskeyring = new CoolWalletKeyRing();
+    expect(typeof cwskeyring).toBe('object');
+    const accounts = await cwskeyring.getAccounts();
     expect(Array.isArray(accounts)).toBe(true);
   });
 });
@@ -145,10 +145,20 @@ describe('unlock', () => {
     await keyring.unlock();
   });
 
-  it('should call _sendMessage if we dont have a public key', async () => {
+  it('should call _sendMessage if we don\'t have a public key', async () => {
     keyring.hdk = new HDKey();
     await keyring.unlock();
     expect(keyring._sendMessage).toHaveBeenCalled();
+  });
+
+  it('should reject if error occured in bridge server', async () => {
+    keyring.hdk = new HDKey();
+    keyring._sendMessage = mockSendMessageFail
+    try{
+      await keyring.unlock()
+    }catch(error){
+      expect(error).toBe('CoolWalletS Error: Not registered')
+    }
   });
 });
 
@@ -399,3 +409,12 @@ describe('forgetDevice', function () {
       expect(accounts.length).toBe(0)
   })
 })
+
+describe('event listener', () => {
+  const newKeyRing = new CoolWalletKeyRing()
+  window.addEventListener = jest.fn()
+  it('should add event listener', () => {
+    newKeyRing._sendMessage({}, ()=>{})
+    expect(window.addEventListener).toHaveBeenCalled()
+  });
+});

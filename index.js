@@ -154,12 +154,6 @@ class CoolWalletKeyRing extends EventEmitter {
               tx.r = r
               tx.s = s
               resolve(tx)
-              const valid = tx.verifySignature()
-              if (valid) {
-                resolve(tx)
-              } else {
-                reject(new Error('CoolWalletS: The transaction signature is not valid'))
-              }
             } else {
               reject(new Error(payload.error || 'CoolWalletS: Unknown error while signing transaction'))
             }
